@@ -53,8 +53,6 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const category = data.category.trim();
-    
-    // 카테고리 이름이 설명 키에 포함되어 있으면 노출
     const description = CATEGORY_DESCRIPTIONS[category];
     
     return (
@@ -131,26 +129,26 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       if (correct) categoriesMap[mapKey].correct += 1;
     });
 
-    // 100점 만점 환산 및 기본 점수 보정 로직
     const finalScoreBySection: Record<string, number> = {};
     const finalMaxScoreBySection: Record<string, number> = {};
     
     sections.forEach(s => {
-      const maxP = rawMaxScoreBySection[s.id] || 1; // 0 나누기 방지
+      const maxP = rawMaxScoreBySection[s.id] || 1;
       const earnedP = rawScoreBySection[s.id] || 0;
       
-      // 100점 환산
-      let scaledScore = (earnedP / maxP) * 100;
-      
-      // 기본 점수 보정 (사용자에게는 비밀)
+      let baseScore = 0;
       if (s.name.includes('독해')) {
-        scaledScore = Math.max(37, scaledScore);
+        baseScore = 37;
       } else if (s.name.includes('문법')) {
-        scaledScore = Math.max(40, scaledScore);
+        baseScore = 40;
       }
       
+      // 공식: 기본 점수 + (취득 점수 합계 / 총 배점 합계) * (100 - 기본 점수)
+      const earnedRatio = earnedP / maxP;
+      const scaledScore = baseScore + (earnedRatio * (100 - baseScore));
+      
       finalScoreBySection[s.id] = Math.round(scaledScore * 10) / 10;
-      finalMaxScoreBySection[s.id] = 100; // 모든 섹션은 100점 만점으로 표기
+      finalMaxScoreBySection[s.id] = 100;
     });
 
     const categoryResults = Object.values(categoriesMap).map(entry => ({
@@ -161,12 +159,9 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       percentage: (entry.correct / entry.total) * 100
     }));
 
-    // 총점은 섹션들의 평균값 (모든 섹션이 100점 기준이므로)
-    const totalScore = Object.values(finalScoreBySection).reduce((acc, val) => acc + val, 0) / (Object.keys(finalScoreBySection).length || 1);
-
     const finalResult: EvaluationResult = {
       studentName: studentInput.name,
-      totalScore: Math.round(totalScore * 10) / 10,
+      totalScore: 0, // 평균 점수는 더 이상 사용하지 않음
       scoreBySection: finalScoreBySection,
       maxScoreBySection: finalMaxScoreBySection,
       categoryResults,
@@ -274,35 +269,22 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       <div ref={reportRef} id="report-container" className="space-y-6 p-4 md:p-0 transition-all duration-300 origin-top">
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-8 md:p-10 text-white shadow-xl relative overflow-hidden border border-slate-700">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="text-center md:text-left">
-              <span className="inline-block bg-indigo-500/20 backdrop-blur-md px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4 border border-indigo-500/30">Official Student Report</span>
-              <h2 className="text-4xl font-black">{result.studentName} 학생</h2>
-              <div className="mt-6 flex flex-wrap gap-4 justify-center md:justify-start">
+          <div className="relative z-10">
+            <div className="text-center md:text-left flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <span className="inline-block bg-indigo-500/20 backdrop-blur-md px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4 border border-indigo-500/30">Official Student Report</span>
+                <h2 className="text-4xl font-black">{result.studentName} 학생</h2>
+              </div>
+              <div className="flex flex-wrap gap-4 justify-center md:justify-end">
                 {sections.map(s => (
-                  <div key={s.id} className="bg-white/5 px-4 py-3 rounded-2xl border border-white/10 min-w-[120px] backdrop-blur-sm transition-all hover:bg-white/10">
-                    <span className="text-[10px] uppercase font-bold text-indigo-300 block mb-1">{s.name}</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black">{result.scoreBySection[s.id]}</span>
-                      <span className="text-xs font-bold opacity-40">/ {result.maxScoreBySection[s.id]}</span>
+                  <div key={s.id} className="bg-white/10 px-6 py-4 rounded-[1.5rem] border border-white/10 min-w-[160px] backdrop-blur-sm transition-all hover:bg-white/15 text-center">
+                    <span className="text-[11px] uppercase font-black text-indigo-300 block mb-1 tracking-widest">{s.name} SCORE</span>
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-4xl font-black tracking-tighter">{result.scoreBySection[s.id]}</span>
+                      <span className="text-sm font-bold opacity-40">/ {result.maxScoreBySection[s.id]}</span>
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-            <div className="bg-white text-slate-900 rounded-[2.5rem] p-8 text-center shadow-2xl min-w-[240px] border border-white/20">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Average Score</span>
-              <div className="text-6xl font-black text-indigo-600 mt-2 tracking-tighter">
-                {result.totalScore}
-              </div>
-              <div className="mt-2 text-slate-400 font-bold text-sm">
-                out of 100 points
-              </div>
-              <div className="mt-4 h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-out" 
-                  style={{ width: `${result.totalScore}%` }}
-                ></div>
               </div>
             </div>
           </div>
