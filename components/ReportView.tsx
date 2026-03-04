@@ -77,7 +77,7 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       const maxP = rawMaxScoreBySection[s.id] || 1;
       const earnedP = rawScoreBySection[s.id] || 0;
       
-      const isStandardized = ['EPT', 'TOEFL', 'TOEFL JR.'].some(type => s.name.includes(type));
+      const isStandardized = ['EPT', 'TOEFL', 'TOEFL JR.', '독해 Lv.'].some(type => s.name.includes(type));
       
       let scaledScore = 0;
       if (isStandardized) {
@@ -120,8 +120,11 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
 
   const getComment = (sectionName: string, score: number) => {
     // Find the test type that matches the section name
-    const testType = ALL_TEST_TYPES.find(type => sectionName.includes(type));
-    if (!testType || !TEST_COMMENTS[testType]) return null;
+    // Sort by length descending to match more specific types first (e.g., "TOEFL JR." before "TOEFL")
+    const sortedTypes = [...ALL_TEST_TYPES].sort((a, b) => b.length - a.length);
+    const testType = sortedTypes.find(type => sectionName.includes(type)) || '일반';
+    
+    if (!TEST_COMMENTS[testType]) return TEST_COMMENTS['일반'][0];
 
     const criteria = TEST_COMMENTS[testType];
     const match = criteria.find(c => {
@@ -130,7 +133,7 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       return minMatch && maxMatch;
     });
 
-    return match;
+    return match || criteria[0] || TEST_COMMENTS['일반'][0];
   };
 
   const renderComments = () => {
@@ -138,7 +141,7 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
 
     const comments: { sectionName: string; level: string; achievement: string }[] = [];
     const grammarSections: { sectionName: string; score: number; id: string }[] = [];
-    const readingTypes = ['EPT', 'TOEFL JR.', 'TOEFL', '독해 Lv.1', '독해 Lv.2', '독해 Lv.3', '독해 Lv.4'];
+    const readingTypes = ['EPT', 'TOEFL JR.', 'TOEFL', '독해 Lv.1', '독해 Lv.2', '독해 Lv.3', '독해 Lv.4', '독해'];
 
     sections.forEach(s => {
       const isGrammar = GRAMMAR_TEST_TYPES.some(type => s.name.includes(type));
@@ -151,7 +154,8 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       if (isGrammar) {
         grammarSections.push({ sectionName: s.name, score: rawScore, id: s.id });
       } else {
-        const comment = getComment(s.name, rawScore);
+        const scaledScore = result.scoreBySection[s.id];
+        const comment = getComment(s.name, scaledScore);
         if (comment) {
           const displayName = isReading ? "독해 평가" : s.name;
           comments.push({ sectionName: displayName, level: comment.level, achievement: comment.achievement });
@@ -162,13 +166,25 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
     // Handle grammar sections: pick the one with the highest score
     if (grammarSections.length > 0) {
       const bestGrammar = grammarSections.reduce((prev, current) => (prev.score > current.score) ? prev : current);
-      const comment = getComment(bestGrammar.sectionName, bestGrammar.score);
+      const scaledScore = result.scoreBySection[bestGrammar.id];
+      const comment = getComment(bestGrammar.sectionName, scaledScore);
       if (comment) {
-        comments.push({ sectionName: bestGrammar.sectionName, level: comment.level, achievement: comment.achievement });
+        comments.push({ sectionName: "문법 평가", level: comment.level, achievement: comment.achievement });
       }
     }
 
-    if (comments.length === 0) return null;
+    if (comments.length === 0) {
+      // Final fallback if somehow still empty
+      return (
+        <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm page-break-avoid space-y-6">
+          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 uppercase tracking-tight">
+            <div className="w-2 h-6 rounded-full bg-indigo-500"></div>
+            Evaluation & Comments
+          </h3>
+          <p className="text-slate-400 text-sm italic">평가 데이터가 부족하여 코멘트를 생성할 수 없습니다.</p>
+        </div>
+      );
+    }
 
     return (
       <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm page-break-avoid space-y-6">
@@ -299,12 +315,8 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
               </div>
               <div className="flex flex-wrap gap-4 justify-center md:justify-end">
                 {sections.map(s => (
-                  <div key={s.id} className="bg-white/10 px-6 py-4 rounded-[1.5rem] border border-white/10 min-w-[160px] backdrop-blur-sm transition-all hover:bg-white/15 text-center">
-                    <span className="text-[11px] uppercase font-black text-indigo-300 block mb-1 tracking-widest">{s.name} SCORE</span>
-                    <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-4xl font-black tracking-tighter">{result.scoreBySection[s.id]}</span>
-                      <span className="text-sm font-bold opacity-40">/ {result.maxScoreBySection[s.id]}</span>
-                    </div>
+                  <div key={s.id} className="bg-white/10 px-8 py-6 rounded-[1.5rem] border border-white/10 min-w-[180px] backdrop-blur-sm transition-all hover:bg-white/15 flex items-center justify-center">
+                    <span className="text-xl font-black tracking-tight text-white">{s.name}</span>
                   </div>
                 ))}
               </div>
@@ -312,9 +324,13 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
           </div>
         </div>
 
+        {renderComments()}
+
         <div className="grid grid-cols-1 gap-8">
           {sections.map((section) => {
-            const sectionData = result.categoryResults.filter(r => r.sectionName === section.name);
+            const sectionData = result.categoryResults
+              .filter(r => r.sectionName === section.name && r.percentage > 0)
+              .sort((a, b) => b.percentage - a.percentage);
             return (
               <div key={section.id} className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm page-break-avoid">
                 <div className="flex justify-between items-start mb-8">
@@ -322,9 +338,6 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
                     <div className={`w-2 h-6 rounded-full bg-gradient-to-b ${section.color}`}></div>
                     {section.name} Analysis
                   </h3>
-                  <div className="text-sm font-bold text-slate-400 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-                    {result.scoreBySection[section.id]} / {result.maxScoreBySection[section.id]}
-                  </div>
                 </div>
                 <div className="h-[320px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -352,12 +365,6 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
                         {sectionData.map((entry: any, i: number) => (
                           <Cell key={`cell-${i}`} fill={entry.percentage >= 80 ? '#10b981' : entry.percentage >= 50 ? '#6366f1' : '#f43f5e'} />
                         ))}
-                        <LabelList 
-                          dataKey="percentage" 
-                          position={isMobile ? "top" : "right"} 
-                          formatter={(v: number) => `${Math.round(v)}%`} 
-                          style={{ fontSize: '11px', fontWeight: 'bold', fill: '#64748b' }} 
-                        />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -366,8 +373,6 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
             );
           })}
         </div>
-
-        {renderComments()}
       </div>
 
       {!isShared && (
