@@ -24,19 +24,13 @@ interface Props {
 }
 
 const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onReset, isShared }) => {
-  const [result, setResult] = useState<EvaluationResult | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    calculateResults();
-    return () => window.removeEventListener('resize', handleResize);
-  }, [questions, studentInput, sections]);
+  const result = React.useMemo(() => {
+    if (!studentInput || !sections || !questions) return null;
 
-  const calculateResults = async () => {
     const isCorrect: Record<string, boolean> = {};
     const rawScoreBySection: Record<string, number> = {};
     const rawMaxScoreBySection: Record<string, number> = {};
@@ -106,17 +100,21 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       percentage: (entry.correct / entry.total) * 100
     }));
 
-    const finalResult: EvaluationResult = {
+    return {
       studentName: studentInput.name,
-      totalScore: 0, // 평균 점수는 더 이상 사용하지 않음
+      totalScore: 0,
       scoreBySection: finalScoreBySection,
       maxScoreBySection: finalMaxScoreBySection,
       categoryResults,
       isCorrect
-    };
+    } as EvaluationResult;
+  }, [questions, studentInput, sections]);
 
-    setResult(finalResult);
-  };
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const getComment = (sectionName: string, score: number) => {
     // Find the test type that matches the section name
