@@ -21,8 +21,8 @@ const COLOR_MAP = [
 ];
 
 const initialSections: SectionConfig[] = [
-  { id: 'sec-1', name: '독해', questionCount: 28, color: 'from-blue-500 to-indigo-600' },
-  { id: 'sec-2', name: '문법', questionCount: 22, color: 'from-emerald-500 to-teal-600' }
+  { id: 'sec-1', name: 'EPT', questionCount: 50, color: 'from-blue-500 to-indigo-600' },
+  { id: 'sec-2', name: 'TOEFL JR.', questionCount: 42, color: 'from-emerald-500 to-teal-600' }
 ];
 
 const generateInitialQuestions = (secs: SectionConfig[]): Question[] => {

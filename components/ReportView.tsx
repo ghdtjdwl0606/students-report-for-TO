@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { EvaluationResult, Question, StudentInput, SectionConfig } from '../types';
+import { TEST_COMMENTS, GRAMMAR_TEST_TYPES, ALL_TEST_TYPES } from '../constants/testComments';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import LZString from 'lz-string';
@@ -13,66 +14,6 @@ const COLOR_MAP = [
   'from-amber-500 to-orange-600',
   'from-violet-500 to-purple-600'
 ];
-
-const CATEGORY_DESCRIPTIONS: Record<string, string> = {
-  // 문법 영역
-  "명사/대명사": "문장의 주인이 되는 대상을 지칭하고 이를 대신하는 표현의 쓰임을 이해했는지 물어봅니다.",
-  "동사": "주어의 동작이나 상태를 나타내어 문장을 완성하는 기본 원리를 이해를 확인합니다.",
-  "형용사/부사": "대상의 상태나 동작을 구체적으로 묘사하여 의미를 풍부하게 하는 법을 이해했는지 물어봅니다.",
-  "관사": "명사 앞에서 특정 여부를 결정짓는 a, an, the의 정확한 사용법을 이해를 확인합니다.",
-  "의문사": "육하원칙에 따라 정보를 묻고 답하는 의문문의 구조를 이해했는지 물어봅니다.",
-  "조동사": "동사에 능력, 허가, 의무 등의 세밀한 의미를 더하는 조동사의 역할을 이해를 확인합니다.",
-  "시제": "사건이 일어난 시점을 과거, 현재, 미래로 정확히 표현하는 법을 이해했는지 물어봅니다.",
-  "문장 형식": "동사의 성격에 따라 결정되는 5가지 문장 구성 원리를 이해를 확인합니다.",
-  "문장 형태": "긍정, 부정, 의문 등 상황에 따라 문장의 형태를 바꾸는 법을 이해했는지 물어봅니다.",
-  "접속사": "접속사를 활용해 원인, 양보, 조건을 표현하며 글의 전개 흐름을 매끄럽게 구성하는 능력을 이해했는지 물어봅니다.",
-  "비교급": "대상 간의 정도 차이를 비교하거나 최상의 상태를 표현하는 방식을 이해했는지 물어봅니다.",
-  "동명사/to 부정사": "동명사와 to 부정사의 쓰임을 이해하고, 특정 동사에서 형태에 따라 의미가 달라지는 것을 파악하고 있는지 물어봅니다.",
-  "관계사": "선행사의 성격에 따라 알맞은 관계사를 선택하고, 복잡한 문장을 세련되게 결합하는 능력을 갖추었는지 확인합니다.",
-  "분사/분사구문": "동사를 형용사처럼 활용하여 명사를 수식하는 현재분사와 과거분사의 의미 차이를 명확히 이해했는지 물어봅니다. 또한, 접속사가 포함된 긴 문장을 분사구문으로 축약하여 글의 효율성을 높이는 고급 문장 구성 원리를 이해를 확인합니다.",
-  "가정법": "'조건절', '가정법 과거', '가정법 과거완료'의 차이를 명확히 구분하여 문장을 완성할 수 있는지 이해를 확인합니다. 또한 화자의 심리적 거리감을 표현하는 특수한 시제 규칙을 영작에 올바르게 적용하는지를 이해했는지 물어봅니다.",
-  "특수구문": "강조, 도치, 생략 등을 통해 문장의 특정 의미를 부각하는 기법을 이해했는지 물어봅니다.",
-  "전치사": "문장 내 명사(구) 간의 시간, 장소, 방향 등의 논리적 관계를 설정하는 능력을 평가합니다. 동사나 형용사와 결합하여 쓰이는 관용적 표현을 알고 있는지 확인합니다.",
-  
-  // 독해 영역
-  "주제/제목 찾기": "글 전체를 관통하는 핵심 소재와 저자가 전달하고자 하는 결정적인 견해를 파악했는지 확인합니다.",
-  "목적 파악": "글을 쓴 구체적인 동기(요청, 감사, 공지 등)가 무엇인지 파악했는지 확인합니다.",
-  "심경 및 분위기 파악": "글에 나타난 전반적인 상황의 공기나 인물의 정서적 상태를 파악했는지 확인합니다.",
-  "함축 의미 추론": "밑줄 친 비유적·상징적 표현이 실제 문맥 안에서 어떤 의미로 쓰였는지 파악했는지 확인합니다.",
-  "빈칸 추론": "글의 핵심 논리를 바탕으로 빈칸에 들어갈 가장 적절한 논리적 근거를 파악했는지 확인합니다.",
-  "무관한 문장 찾기": "전체적인 주제의 흐름을 방해하거나 논점이 이탈된 문장을 파악했는지 확인합니다.",
-  "순서 배열": "지시어, 연결어, 대명사 등의 단서를 활용해 글의 선후 관계를 논리적으로 파악했는지 확인합니다.",
-  "문장 삽입": "주어진 문장이 들어갈 적절한 위치를 찾아 문장 간의 논리적 연결 고리를 파악했는지 확인합니다.",
-  "요약문 완성": "지문의 전체 내용을 한 문장으로 압축할 때 필요한 핵심 키워드를 파악했는지 확인합니다.",
-  "내용 일치": "지문에 제시된 구체적인 정보와 선택지의 진술이 일치하는지 여부를 정확히 파악했는지 확인합니다.",
-  "어법/어휘": "문장의 구조적 적합성과 문맥에 맞는 정확한 단어의 쓰임을 파악했는지 확인합니다.",
-  "장문 독해": "긴 지문 속에서 전체적인 흐름과 세부적인 정보를 동시에 파악했는지 확인합니다."
-};
-
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    const category = data.category.trim();
-    const description = CATEGORY_DESCRIPTIONS[category];
-    
-    return (
-      <div className="bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-white/10 max-w-[280px]">
-        <div className="flex justify-between items-center gap-4 mb-2">
-          <p className="font-bold text-indigo-300 text-sm">{data.category}</p>
-          <p className="text-xs font-black bg-indigo-500 px-2 py-0.5 rounded-lg shrink-0">{Math.round(data.percentage)}%</p>
-        </div>
-        {description && (
-          <div className="pt-2 border-t border-white/10">
-            <p className="text-[11px] leading-relaxed text-slate-300 font-medium">
-              {description}
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-  return null;
-};
 
 interface Props {
   sections: SectionConfig[];
@@ -136,18 +77,24 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
       const maxP = rawMaxScoreBySection[s.id] || 1;
       const earnedP = rawScoreBySection[s.id] || 0;
       
-      let baseScore = 0;
-      if (s.name.includes('독해')) {
-        baseScore = 37;
-      } else if (s.name.includes('문법')) {
-        baseScore = 40;
+      const isStandardized = ['EPT', 'TOEFL', 'TOEFL JR.'].some(type => s.name.includes(type));
+      
+      let scaledScore = 0;
+      if (isStandardized) {
+        scaledScore = (earnedP / maxP) * 100;
+      } else {
+        let baseScore = 0;
+        if (s.name.includes('독해')) {
+          baseScore = 37;
+        } else if (s.name.includes('문법')) {
+          baseScore = 40;
+        }
+        
+        const earnedRatio = earnedP / maxP;
+        scaledScore = baseScore + (earnedRatio * (100 - baseScore));
       }
       
-      // 공식: 기본 점수 + (취득 점수 합계 / 총 배점 합계) * (100 - 기본 점수)
-      const earnedRatio = earnedP / maxP;
-      const scaledScore = baseScore + (earnedRatio * (100 - baseScore));
-      
-      finalScoreBySection[s.id] = Math.round(scaledScore * 10) / 10;
+      finalScoreBySection[s.id] = Math.ceil(scaledScore);
       finalMaxScoreBySection[s.id] = 100;
     });
 
@@ -169,6 +116,81 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
     };
 
     setResult(finalResult);
+  };
+
+  const getComment = (sectionName: string, score: number) => {
+    // Find the test type that matches the section name
+    const testType = ALL_TEST_TYPES.find(type => sectionName.includes(type));
+    if (!testType || !TEST_COMMENTS[testType]) return null;
+
+    const criteria = TEST_COMMENTS[testType];
+    const match = criteria.find(c => {
+      const minMatch = score >= c.minScore;
+      const maxMatch = c.maxScore === undefined || score <= c.maxScore;
+      return minMatch && maxMatch;
+    });
+
+    return match;
+  };
+
+  const renderComments = () => {
+    if (!result) return null;
+
+    const comments: { sectionName: string; level: string; achievement: string }[] = [];
+    const grammarSections: { sectionName: string; score: number; id: string }[] = [];
+    const readingTypes = ['EPT', 'TOEFL JR.', 'TOEFL', '독해 Lv.1', '독해 Lv.2', '독해 Lv.3', '독해 Lv.4'];
+
+    sections.forEach(s => {
+      const isGrammar = GRAMMAR_TEST_TYPES.some(type => s.name.includes(type));
+      const isReading = readingTypes.some(type => s.name.includes(type));
+      
+      const rawScore = questions
+        .filter(q => q.sectionId === s.id && result.isCorrect[q.id])
+        .reduce((sum, q) => sum + q.points, 0);
+
+      if (isGrammar) {
+        grammarSections.push({ sectionName: s.name, score: rawScore, id: s.id });
+      } else {
+        const comment = getComment(s.name, rawScore);
+        if (comment) {
+          const displayName = isReading ? "독해 평가" : s.name;
+          comments.push({ sectionName: displayName, level: comment.level, achievement: comment.achievement });
+        }
+      }
+    });
+
+    // Handle grammar sections: pick the one with the highest score
+    if (grammarSections.length > 0) {
+      const bestGrammar = grammarSections.reduce((prev, current) => (prev.score > current.score) ? prev : current);
+      const comment = getComment(bestGrammar.sectionName, bestGrammar.score);
+      if (comment) {
+        comments.push({ sectionName: bestGrammar.sectionName, level: comment.level, achievement: comment.achievement });
+      }
+    }
+
+    if (comments.length === 0) return null;
+
+    return (
+      <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm page-break-avoid space-y-6">
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 uppercase tracking-tight">
+          <div className="w-2 h-6 rounded-full bg-indigo-500"></div>
+          Evaluation & Comments
+        </h3>
+        <div className="space-y-6">
+          {comments.map((c, idx) => (
+            <div key={idx} className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">{c.sectionName}</span>
+                <span className="text-indigo-600 font-bold text-sm">{c.level}</span>
+              </div>
+              <p className="text-slate-600 text-sm leading-relaxed font-medium">
+                {c.achievement}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const copyShareLink = () => {
@@ -326,7 +348,6 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
                         width={110} 
                         tick={{ fontSize: 11, fontWeight: 700, fill: '#64748b' }} 
                       />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9', opacity: 0.4 }} />
                       <Bar dataKey="percentage" radius={isMobile ? [6, 6, 0, 0] : [0, 6, 6, 0]} barSize={28}>
                         {sectionData.map((entry: any, i: number) => (
                           <Cell key={`cell-${i}`} fill={entry.percentage >= 80 ? '#10b981' : entry.percentage >= 50 ? '#6366f1' : '#f43f5e'} />
@@ -345,6 +366,8 @@ const ReportView: React.FC<Props> = ({ sections, questions, studentInput, onRese
             );
           })}
         </div>
+
+        {renderComments()}
       </div>
 
       {!isShared && (

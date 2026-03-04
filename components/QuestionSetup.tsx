@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Question, SectionConfig } from '../types';
+import { ALL_TEST_TYPES } from '../constants/testComments';
 
 interface Props {
   sections: SectionConfig[];
@@ -112,6 +113,7 @@ const QuestionSetup: React.FC<Props> = ({ sections, setSections, questions, setQ
           <div className="flex items-center gap-4 flex-1">
             <input 
               type="text" 
+              list="test-types"
               value={section.name} 
               onChange={(e) => updateSectionName(section.id, e.target.value)}
               className="bg-transparent border-b border-white/30 font-bold text-xl focus:outline-none focus:border-white w-full max-w-[200px]"
@@ -238,6 +240,11 @@ const QuestionSetup: React.FC<Props> = ({ sections, setSections, questions, setQ
 
       <div className="space-y-6">
         {sections.map(section => renderSectionTable(section))}
+        <datalist id="test-types">
+          {ALL_TEST_TYPES.map(type => (
+            <option key={type} value={type} />
+          ))}
+        </datalist>
         {sections.length === 0 && (
           <div className="p-20 text-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
             <i className="fas fa-layer-group text-4xl text-slate-300 mb-4 block"></i>
