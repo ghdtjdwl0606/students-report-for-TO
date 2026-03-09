@@ -10,12 +10,6 @@ export const TEST_COMMENTS: Record<string, CommentCriteria[]> = {
   'EPT': [
     {
       minScore: 0,
-      maxScore: 39,
-      level: '기초 단계',
-      achievement: '영어의 기초적인 소리와 글자의 관계를 익히는 단계입니다. 간단한 단어와 문장을 소리 내어 읽어보며 영어에 대한 흥미를 키워가는 과정이 필요합니다.'
-    },
-    {
-      minScore: 40,
       maxScore: 79,
       level: '초등학교 상위 수준',
       achievement: '일상적이고 친숙한 소재의 짧은 이야기를 스스로 읽고 즐길 수 있는 단계입니다. 글에 나타난 사건의 순서를 파악하거나 그림의 도움 없이도 기본적인 줄거리를 파악하는 힘이 생겼습니다.'
